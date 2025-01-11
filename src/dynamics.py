@@ -6,17 +6,23 @@ gravitational_constant = 1  # Gravitational constant
 
 class Body:
 
-    def __init__(self, mass, position, velocity):
+    def __init__(self, mass: float, position, velocity):
+        """
+        Creates a Body instance representing a point mass with the specified parameters.
+        :param mass: Mass (kg)
+        :param position: Position vector in Cartesian coordinates (m)
+        :param velocity: Velocity vector in Cartesian coordinates (m/s)
+        """
         self.mass = mass
         self.positions = [position]
         self.velocities = [velocity]
         self.accelerations = [np.zeros(3)]
         self.time = [0]
 
-    def calculate_gravitational_force(self, bodies):
+    def calculate_gravitational_force(self, bodies: list):
         """
         Calculates the current gravitational force between this body and a set of bodies.
-        :param body: A list of Body objects
+        :param bodies: A list of Body objects
         :return: Total Gravitational force
         """
         force = 0
@@ -27,6 +33,22 @@ class Body:
             else:
                 force += -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
         return force
+
+    def __call__(self, kinematic: str):
+        """
+        Returns a history of the kinematic property of the point mass as a list of tuples, where the first element is time and the second element is the kinematic property at that time.
+        :param kinematic:
+        :return: List of tuples: (time (s), kinematic)
+        """
+        match kinematic:
+            case 'x' | 'position':
+                return list(zip(np.array(self.time), np.array(self.positions)))
+            case 'v' | 'velocity':
+                return list(zip(np.array(self.time), np.array(self.velocities)))
+            case 'a' | 'acceleration':
+                return list(zip(np.array(self.time), np.array(self.accelerations)))
+        error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
+        raise ValueError(error_message)
 
 
 class Dynamics:
