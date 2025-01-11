@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="87bdc86b-ba92-4d4d-8fb5-1addacea1727" name="Changes" comment="src folder">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/dynamics.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/dynamics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/simulation.py" afterDir="false" />
-    </list>
+    <list default="true" id="87bdc86b-ba92-4d4d-8fb5-1addacea1727" name="Changes" comment="Added new methods to Body" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -76,13 +71,22 @@
       <option name="project" value="LOCAL" />
       <updated>1736583302436</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Added new methods to Body.">
+      <option name="closed" value="true" />
+      <created>1736585060790</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1736585060790</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="Initial commit." />
     <MESSAGE value="src folder" />
-    <option name="LAST_COMMIT_MESSAGE" value="src folder" />
+    <MESSAGE value="Added new methods to Body." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added new methods to Body." />
   </component>
 </project>
