@@ -54,6 +54,10 @@ class Body:
 class Dynamics:
 
     def __init__(self, bodies):
+        """
+        Creates a Dynamics instance representing the time-dependent interactions between point masses.
+        :param bodies: List of Body objects.
+        """
         self.bodies = bodies
 
     def __call__(self, steps, dt, method='verlet'):
@@ -73,6 +77,12 @@ class Dynamics:
         return history
 
     def verlet_method(self, steps, dt):
+        """
+        Numerically integrates differential equation dynamics using the verlet integration method.
+        :param steps: Total number of integration steps.
+        :param dt: Integration step size.
+        :return:
+        """
         for body in self.bodies:
             other_bodies = [b for b in self.bodies if not b == body]
             acceleration = body.calculate_gravitational_force(other_bodies) / body.mass
@@ -94,4 +104,13 @@ class Dynamics:
             for body in self.bodies:
                 prev_time = body.time[-1]
                 body.time.append(prev_time + dt)
+
+    def gauss_legendre(self, steps, dt):
+        """
+
+        :param steps:
+        :param dt:
+        :return:
+        """
+        pass
 
