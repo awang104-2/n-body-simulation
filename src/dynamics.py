@@ -32,9 +32,6 @@ class Body:
             force = -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
         return force
 
-<<<<<<< Updated upstream
-    def __call__(self, kinematic: str):
-=======
     def calculate_displacement(self, body):
         return self.positions[-1] - body.positions[-1]
 
@@ -59,32 +56,45 @@ class Body:
         return {'PE': PE, 'KE': KE, 'E': total}
 
     def __call__(self, kinematic: str, history=False):
->>>>>>> Stashed changes
         """
         Returns a history of the kinematic property of the point mass as a list of tuples, where the first element is time and the second element is the kinematic property at that time.
         :param kinematic:
         :return: List of tuples: (time (s), kinematic)
         """
-        match kinematic:
-            case 'x' | 'position':
-                return list(zip(np.array(self.time), np.array(self.positions)))
-            case 'v' | 'velocity':
-                return list(zip(np.array(self.time), np.array(self.velocities)))
-            case 'a' | 'acceleration':
-                return list(zip(np.array(self.time), np.array(self.accelerations)))
-        error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
-        raise ValueError(error_message)
+        if history:
+            match kinematic:
+                case 'x' | 'position':
+                    return list(zip(np.array(self.time), np.array(self.positions)))
+                case 'v' | 'velocity':
+                    return list(zip(np.array(self.time), np.array(self.velocities)))
+                case 'a' | 'acceleration':
+                    return list(zip(np.array(self.time), np.array(self.accelerations)))
+            error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
+            raise ValueError(error_message)
+        else:
+            match kinematic:
+                case 'x' | 'position':
+                    return self.positions[-1]
+                case 'v' | 'velocity':
+                    return self.velocities[-1]
+                case 'a' | 'acceleration':
+                    return self.accelerations[-1]
+
 
 class Dynamics:
 
     def __init__(self, bodies):
+        """
+        Creates a Dynamics instance representing the time-dependent interactions between point masses.
+        :param bodies: List of Body objects.
+        """
         self.bodies = bodies
 
-    def __call__(self, steps, dt, method='verlet'):
+    def __call__(self, dt, steps=1, method='verlet'):
         """
         Applies dynamics for gravity using a specific numerical integration method across a certain number of steps with a specific step size.
-        :param steps: Number of steps for numerical integration
         :param dt: Step size for numerical integration
+        :param steps: Number of steps for numerical integration
         :param method: Type of integration
         :return: A list of dictionaries representing the properties of each Body
         """
@@ -101,19 +111,12 @@ class Dynamics:
         return history
 
     def verlet_method(self, steps, dt):
-<<<<<<< Updated upstream
-        for body in self.bodies:
-            other_bodies = [b for b in self.bodies if not b == body]
-            acceleration = body.calculate_gravitational_force(other_bodies) / body.mass
-            body.accelerations[-1] = acceleration
-=======
         """
         Numerically integrates differential equation dynamics using the verlet integration method.
         :param steps: Total number of integration steps.
         :param dt: Integration step size.
         :return:
         """
->>>>>>> Stashed changes
         for _ in range(steps):
             for kinematic in ['x', 'a', 'v']:
                 for body in self.bodies:
@@ -132,8 +135,6 @@ class Dynamics:
                 prev_time = body.time[-1]
                 body.time.append(prev_time + dt)
 
-<<<<<<< Updated upstream
-=======
     def gauss_legendre(self, steps, dt):
         """
 
@@ -147,4 +148,3 @@ class Dynamics:
 
 
 
->>>>>>> Stashed changes
