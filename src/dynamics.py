@@ -19,22 +19,47 @@ class Body:
         self.accelerations = [np.zeros(3)]
         self.time = [0]
 
-    def calculate_gravitational_force(self, bodies: list):
+    def calculate_gravitational_force(self, body):
         """
-        Calculates the current gravitational force between this body and a set of bodies.
-        :param bodies: A list of Body objects
-        :return: Total Gravitational force
+        Calculates the current gravitational force between this and another Body/point mass.
+        :param body: A separate Body instance
+        :return: Gravitational force (vector)
         """
-        force = 0
-        for body in bodies:
-            r = self.positions[-1] - body.positions[-1]
-            if np.all(np.abs(r) < np.abs([1, 1, 1])):
-                force += 0
-            else:
-                force += -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
+        r = self.calculate_displacement(body)
+        if np.all(np.linalg.norm(r) < 1):
+            force = np.zeros(3)
+        else:
+            force = -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
         return force
 
+<<<<<<< Updated upstream
     def __call__(self, kinematic: str):
+=======
+    def calculate_displacement(self, body):
+        return self.positions[-1] - body.positions[-1]
+
+    def calculate_potential_energy(self, body):
+        return np.sum(self.calculate_gravitational_force(body) * self.calculate_displacement(body))
+
+    def calculate_kinetic_energy(self):
+        return (1 / 2) * self.mass * np.linalg.norm(self.velocities[-1]) ** 2
+
+    def calculate_total_gravity(self, bodies):
+        force = np.zeros(3)
+        for body in bodies:
+            force += self.calculate_gravitational_force(body)
+        return force
+
+    def calculate_total_energies(self, bodies):
+        PE, KE, total = (0, 0, 0)
+        KE = self.calculate_kinetic_energy()
+        for body in bodies:
+            PE += self.calculate_potential_energy(body)
+        total = KE + PE
+        return {'PE': PE, 'KE': KE, 'E': total}
+
+    def __call__(self, kinematic: str, history=False):
+>>>>>>> Stashed changes
         """
         Returns a history of the kinematic property of the point mass as a list of tuples, where the first element is time and the second element is the kinematic property at that time.
         :param kinematic:
@@ -50,7 +75,6 @@ class Body:
         error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
         raise ValueError(error_message)
 
-
 class Dynamics:
 
     def __init__(self, bodies):
@@ -65,6 +89,10 @@ class Dynamics:
         :return: A list of dictionaries representing the properties of each Body
         """
         history = []
+        for body in self.bodies:
+            other_bodies = [b for b in self.bodies if not b == body]
+            acceleration = body.calculate_total_gravity(other_bodies) / body.mass
+            body.accelerations[-1] = acceleration
         match method:
             case 'verlet':
                 self.verlet_method(steps, dt)
@@ -73,10 +101,19 @@ class Dynamics:
         return history
 
     def verlet_method(self, steps, dt):
+<<<<<<< Updated upstream
         for body in self.bodies:
             other_bodies = [b for b in self.bodies if not b == body]
             acceleration = body.calculate_gravitational_force(other_bodies) / body.mass
             body.accelerations[-1] = acceleration
+=======
+        """
+        Numerically integrates differential equation dynamics using the verlet integration method.
+        :param steps: Total number of integration steps.
+        :param dt: Integration step size.
+        :return:
+        """
+>>>>>>> Stashed changes
         for _ in range(steps):
             for kinematic in ['x', 'a', 'v']:
                 for body in self.bodies:
@@ -86,7 +123,7 @@ class Dynamics:
                             body.positions.append(position)
                         case 'a':
                             other_bodies = [b for b in self.bodies if not b == body]
-                            acceleration = body.calculate_gravitational_force(other_bodies) / body.mass
+                            acceleration = body.calculate_total_gravity(other_bodies) / body.mass
                             body.accelerations.append(acceleration)
                         case 'v':
                             velocity = body.velocities[-1] + 0.5 * (body.accelerations[-2] + body.accelerations[-1]) * dt
@@ -95,3 +132,19 @@ class Dynamics:
                 prev_time = body.time[-1]
                 body.time.append(prev_time + dt)
 
+<<<<<<< Updated upstream
+=======
+    def gauss_legendre(self, steps, dt):
+        """
+
+        :param steps:
+        :param dt:
+        :return:
+        """
+        pass
+
+
+
+
+
+>>>>>>> Stashed changes
