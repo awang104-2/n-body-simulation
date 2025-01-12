@@ -34,21 +34,31 @@ class Body:
                 force += -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
         return force
 
-    def __call__(self, kinematic: str):
+    def __call__(self, kinematic: str, history=False):
         """
         Returns a history of the kinematic property of the point mass as a list of tuples, where the first element is time and the second element is the kinematic property at that time.
         :param kinematic:
         :return: List of tuples: (time (s), kinematic)
         """
-        match kinematic:
-            case 'x' | 'position':
-                return list(zip(np.array(self.time), np.array(self.positions)))
-            case 'v' | 'velocity':
-                return list(zip(np.array(self.time), np.array(self.velocities)))
-            case 'a' | 'acceleration':
-                return list(zip(np.array(self.time), np.array(self.accelerations)))
-        error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
-        raise ValueError(error_message)
+        if history:
+            match kinematic:
+                case 'x' | 'position':
+                    return list(zip(np.array(self.time), np.array(self.positions)))
+                case 'v' | 'velocity':
+                    return list(zip(np.array(self.time), np.array(self.velocities)))
+                case 'a' | 'acceleration':
+                    return list(zip(np.array(self.time), np.array(self.accelerations)))
+            error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
+            raise ValueError(error_message)
+        else:
+            match kinematic:
+                case 'x' | 'position':
+                    return self.positions[-1]
+                case 'v' | 'velocity':
+                    return self.velocities[-1]
+                case 'a' | 'acceleration':
+                    return self.accelerations[-1]
+
 
 
 class Dynamics:
@@ -60,11 +70,11 @@ class Dynamics:
         """
         self.bodies = bodies
 
-    def __call__(self, steps, dt, method='verlet'):
+    def __call__(self, dt, steps=1, method='verlet'):
         """
         Applies dynamics for gravity using a specific numerical integration method across a certain number of steps with a specific step size.
-        :param steps: Number of steps for numerical integration
         :param dt: Step size for numerical integration
+        :param steps: Number of steps for numerical integration
         :param method: Type of integration
         :return: A list of dictionaries representing the properties of each Body
         """
