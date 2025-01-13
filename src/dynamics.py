@@ -59,7 +59,7 @@ def leapfrog(bodies, force, dt, is_a0, steps=1):
     :param bodies: List of dictionaries representing point masses
     :param force: Function representing the coupled EOM-ODE
     :param dt: Time step (s)
-    :param is_a0: True if initial acceleration hasn't been set
+    :param is_a0: True if initial acceleration hasn't been set #
     :param steps: Number of integration steps
     :return: List of dictionaries representing point masses
     """
