@@ -2,81 +2,149 @@ import numpy as np
 
 
 gravitational_constant = 1  # Gravitational constant
-G = gravitational_constant  # Gravitational constant
 
 
-def define_body(mass, position, velocity=None, acceleration=None):
-    """
-    Creates a dictionary representing a point mass with the parameters as properties.
-    :param mass: Mass (kg)
-    :param position: Position (m)
-    :param velocity: Velocity (m/s)
-    :param acceleration: Acceleration (m/s^2)
-    :return: A dictionary with the point mass's properties
-    """
-    N = len(position)
-    if not velocity:
-        velocity = np.zeros(N)
-    if not acceleration:
-        acceleration = np.zeros(N)
-    position, velocity, acceleration = (np.array(position), np.array(velocity), np.array(acceleration))
-    return {'m': mass, 'x': position, 'v': velocity, 'a': acceleration}
+class Body:
+
+    def __init__(self, mass: float, position, velocity):
+        """
+        Creates a Body instance representing a point mass with the specified parameters.
+        :param mass: Mass (kg)
+        :param position: Position vector in Cartesian coordinates (m)
+        :param velocity: Velocity vector in Cartesian coordinates (m/s)
+        """
+        self.mass = mass
+        self.positions = [position]
+        self.velocities = [velocity]
+        self.accelerations = [np.zeros(3)]
+        self.time = [0]
+
+    def calculate_gravitational_force(self, body):
+        """
+        Calculates the current gravitational force between this and another Body/point mass.
+        :param body: A separate Body instance
+        :return: Gravitational force (vector)
+        """
+        r = self.calculate_displacement(body)
+        if np.all(np.linalg.norm(r) < 1):
+            force = np.zeros(3)
+        else:
+            force = -1 * r * gravitational_constant * self.mass * body.mass / np.linalg.norm(r) ** 3
+        return force
+
+    def calculate_displacement(self, body):
+        return self.positions[-1] - body.positions[-1]
+
+    def calculate_potential_energy(self, body):
+        return np.sum(self.calculate_gravitational_force(body) * self.calculate_displacement(body))
+
+    def calculate_kinetic_energy(self):
+        return (1 / 2) * self.mass * np.linalg.norm(self.velocities[-1]) ** 2
+
+    def calculate_total_gravity(self, bodies):
+        force = np.zeros(3)
+        for body in bodies:
+            force += self.calculate_gravitational_force(body)
+        return force
+
+    def calculate_total_energies(self, bodies):
+        PE, KE, total = (0, 0, 0)
+        KE = self.calculate_kinetic_energy()
+        for body in bodies:
+            PE += self.calculate_potential_energy(body)
+        total = KE + PE
+        return {'PE': PE, 'KE': KE, 'E': total}
+
+    def __call__(self, kinematic: str, history=False):
+        """
+        Returns a history of the kinematic property of the point mass as a list of tuples, where the first element is time and the second element is the kinematic property at that time.
+        :param kinematic:
+        :return: List of tuples: (time (s), kinematic)
+        """
+        if history:
+            match kinematic:
+                case 'x' | 'position':
+                    return list(zip(np.array(self.time), np.array(self.positions)))
+                case 'v' | 'velocity':
+                    return list(zip(np.array(self.time), np.array(self.velocities)))
+                case 'a' | 'acceleration':
+                    return list(zip(np.array(self.time), np.array(self.accelerations)))
+            error_message = 'Could not find \'' + kinematic + '\' kinematic. Use lowercase singular name or \'x\', \'v\', \'a\'.'
+            raise ValueError(error_message)
+        else:
+            match kinematic:
+                case 'x' | 'position':
+                    return self.positions[-1]
+                case 'v' | 'velocity':
+                    return self.velocities[-1]
+                case 'a' | 'acceleration':
+                    return self.accelerations[-1]
 
 
-def gravity(bodies):
-    """
-    Returns the force and acceleration of gravity between a group of point masses.
-    :param bodies: List of dictionaries with 'x' (m), 'v' (m/s), 'a' (m/s^2), and 'm' (kg)
-    :return: List, 1st element is force of gravity (N), 2nd is acceleration of gravity (m/s^2)
-    """
-    N = len(bodies)
-    dimensions = len(bodies[-1]['x'])
-    fg = np.zeros((N, dimensions))
-    g = np.zeros((N, dimensions))
-    for i, b1 in enumerate(bodies):
-        for j, b2 in list(enumerate(bodies))[i+1:]:
-            mg = -G * b1['m'] * b2['m'] / np.linalg.norm(b1['x'] - b2['x']) ** 3 * (b1['x'] - b2['x'])
-            fg[i] += mg
-            fg[j] -= mg
-            g[i] += mg / b1['m']
-            g[j] -= mg / b2['m']
-    return fg, g
+class Dynamics:
+
+    def __init__(self, bodies):
+        """
+        Creates a Dynamics instance representing the time-dependent interactions between point masses.
+        :param bodies: List of Body objects.
+        """
+        self.bodies = bodies
+
+    def __call__(self, dt, steps=1, method='verlet'):
+        """
+        Applies dynamics for gravity using a specific numerical integration method across a certain number of steps with a specific step size.
+        :param dt: Step size for numerical integration
+        :param steps: Number of steps for numerical integration
+        :param method: Type of integration
+        :return: A list of dictionaries representing the properties of each Body
+        """
+        history = []
+        for body in self.bodies:
+            other_bodies = [b for b in self.bodies if not b == body]
+            acceleration = body.calculate_total_gravity(other_bodies) / body.mass
+            body.accelerations[-1] = acceleration
+        match method:
+            case 'verlet':
+                self.verlet_method(steps, dt)
+        for body in self.bodies:
+            history.append({'x': np.array(body.positions), 'v': np.array(body.velocities), 'a': np.array(body.accelerations), 't': np.array(body.time)})
+        return history
+
+    def verlet_method(self, steps, dt):
+        """
+        Numerically integrates differential equation dynamics using the verlet integration method.
+        :param steps: Total number of integration steps.
+        :param dt: Integration step size.
+        :return:
+        """
+        for _ in range(steps):
+            for kinematic in ['x', 'a', 'v']:
+                for body in self.bodies:
+                    match kinematic:
+                        case 'x':
+                            position = body.positions[-1] + body.velocities[-1] * dt + 0.5 * body.accelerations[-1] * dt ** 2
+                            body.positions.append(position)
+                        case 'a':
+                            other_bodies = [b for b in self.bodies if not b == body]
+                            acceleration = body.calculate_total_gravity(other_bodies) / body.mass
+                            body.accelerations.append(acceleration)
+                        case 'v':
+                            velocity = body.velocities[-1] + 0.5 * (body.accelerations[-2] + body.accelerations[-1]) * dt
+                            body.velocities.append(velocity)
+            for body in self.bodies:
+                prev_time = body.time[-1]
+                body.time.append(prev_time + dt)
+
+    def gauss_legendre(self, steps, dt):
+        """
+
+        :param steps:
+        :param dt:
+        :return:
+        """
+        pass
 
 
-def get_kinematic_quantity(bodies, name):
-    """
-    Returns the specified kinematic quantity of the point masses as a list in corresponding order to the inputted dictionaries.
-    :param bodies: List of dictionaries
-    :param name: String 'x', 'v', 'a', etc.
-    :return: Numpy array of the specified physical quantity (m, m/s, m/s^2, etc.)
-    """
-    return np.array([np.copy(b[name]) for b in bodies])
 
-
-def leapfrog(bodies, force, dt, is_a0, steps=1):
-    """
-    Use leapfrog method to integrate EOM and find the kinematic quantities of point masses after some time.
-    :param bodies: List of dictionaries representing point masses
-    :param force: Function representing the coupled EOM-ODE
-    :param dt: Time step (s)
-    :param is_a0: True if initial acceleration hasn't been set
-    :param steps: Number of integration steps
-    :return: List of dictionaries representing point masses
-    """
-    if is_a0:
-        a = force(bodies)[1]
-    else:
-        a = get_kinematic_quantity(bodies, 'a')
-    v = get_kinematic_quantity(bodies, 'v')
-    x = get_kinematic_quantity(bodies, 'x')
-    v = v + a * dt / 2
-    x = x + v * dt
-    a = force(bodies)[1]
-    v = v + a * dt / 2
-    new_bodies = []
-    for i, b in enumerate(bodies):
-        mass, position, velocity, acceleration = (np.copy(b['m']), x[i], v[i], a[i])
-        new_bodies.append({'m': mass, 'x': position, 'v': velocity, 'a': acceleration})
-    return new_bodies
 
 
