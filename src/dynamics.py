@@ -78,5 +78,3 @@ def leapfrog(bodies, force, dt, is_a0, steps=1):
         mass, position, velocity, acceleration = (np.copy(b['m']), x[i], v[i], a[i])
         new_bodies.append({'m': mass, 'x': position, 'v': velocity, 'a': acceleration})
     return new_bodies
-
-
