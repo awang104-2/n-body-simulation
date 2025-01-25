@@ -19,7 +19,7 @@ def define_body(mass, position, velocity=None, acceleration=None):
         velocity = np.zeros(N)
     if not acceleration:
         acceleration = np.zeros(N)
-    position, velocity, acceleration = (np.array(position), np.array(velocity), np.array(acceleration))
+    position, velocity, acceleration = np.array(position), np.array(velocity), np.array(acceleration)
     return {'m': mass, 'x': position, 'v': velocity, 'a': acceleration}
 
 
@@ -35,7 +35,8 @@ def gravity(bodies):
     g = np.zeros((N, dimensions))
     for i, b1 in enumerate(bodies):
         for j, b2 in list(enumerate(bodies))[i+1:]:
-            mg = -G * b1['m'] * b2['m'] / np.linalg.norm(b1['x'] - b2['x']) ** 3 * (b1['x'] - b2['x'])
+            r = b1['x'] - b2['x']
+            mg = -G * b1['m'] * b2['m'] / np.linalg.norm(r) ** 3 * r
             fg[i] += mg
             fg[j] -= mg
             g[i] += mg / b1['m']
