@@ -1,3 +1,9 @@
+"""
+MIT License
+
+Copyright (c) 2025 awang104
+"""
+
 import numpy as np
 
 
@@ -5,96 +11,148 @@ gravitational_constant = 1  # Gravitational constant
 G = gravitational_constant  # Gravitational constant
 
 
+def gravitational_potential_energy(b1, b2):
+    return -G * b1.m * b2.m / distance(b1, b2)
+
+def distance(b1, b2):
+    return np.linalg.norm(b2.x - b1.x)
+
+
+def displacement(b1, b2):
+    return b2.x - b1.x
+
+
+def n_bodies(n):
+    bodies = []
+    for _ in range(n):
+        bodies.append(Body())
+    return bodies
+
+
+def gravity(b1, b2, vector=False):
+    r = distance(b1, b2)
+    if vector:
+        return G * b1.m * b2.m / r ** 3 * displacement(b1, b2)
+    else:
+        return G * b1.m * b2.m / r ** 2
+
+
+def leapfrog(bodies, dt, forces=tuple([gravity])):
+    """
+    Use leapfrog method to integrate EOM for a list of Body instances using list of forces.
+    :param bodies: List of Body instances
+    :param dt: Time step (s)
+    :param force: Function of the force, gravity by default
+    """
+    v_halves = []
+    for b in bodies:
+        v_half = b.v + 1/2 * b.a * dt
+        v_halves.append(v_half)
+        b.x += v_half * dt
+    for i, b1 in enumerate(bodies):
+        b1.a = np.zeros(3)
+        for b2 in bodies:
+            if b2 == b1:
+                continue
+            for force in forces:
+                b1.a += force(b1, b2, True) / b1.mass
+        b1.v = v_halves[i] + 1/2 * b1.a * dt
+
+
 class Body:
 
-    def __init__(self, mass, position, velocity, acceleration):
-        self._mass = mass
-        self.position = np.array(position)
-        self.velocity = np.array(velocity)
+    def __init__(self, mass=100, position=(0, 0, 0), velocity=(0, 0, 0), acceleration=(0, 0, 0)):
+        """
+        Models the kinematics of a point mass.
+        :param mass: Scalar mass of the point mass
+        :param position: 3D vector position of the point mass
+        :param velocity: 3D vector velocity of the point mass
+        :param acceleration: 3D vector acceleration of the point mass
+        """
+        self.mass = mass
+        self.position = np.array(position).astype(float)
+        self.velocity = np.array(velocity).astype(float)
+        self.acceleration = np.array(acceleration).astype(float)
 
+    @property
+    def m(self):
+        return self.mass
 
-def define_body(mass, position, velocity=None, acceleration=None):
-    """
-    Creates a dictionary representing a point mass with the parameters as properties.
-    :param mass: Mass (kg)
-    :param position: Position (m)
-    :param velocity: Velocity (m/s)
-    :param acceleration: Acceleration (m/s^2)
-    :return: A dictionary with the point mass's properties
-    """
-    N = len(position)
-    if velocity is None:
-        velocity = np.zeros(N)
-    if acceleration is None:
-        acceleration = np.zeros(N)
-    position, velocity, acceleration = np.array(position), np.array(velocity), np.array(acceleration)
-    return {'m': mass, 'x': position, 'v': velocity, 'a': acceleration}
+    @m.setter
+    def m(self, mass):
+        self.mass = mass
 
+    @property
+    def x(self):
+        return self.position
+    
+    @x.setter
+    def x(self, position):
+        self.position = position
 
-def gravity(bodies):
-    """
-    Returns the force and acceleration of gravity between a group of point masses.
-    :param bodies: List of dictionaries with 'x' (m), 'v' (m/s), 'a' (m/s^2), and 'm' (kg)
-    :return: List, 1st element is force of gravity (N), 2nd is acceleration of gravity (m/s^2)
-    """
-    N = len(bodies)
-    dimensions = len(bodies[-1]['x'])
-    fg = np.zeros((N, dimensions))
-    g = np.zeros((N, dimensions))
-    for i, b1 in enumerate(bodies):
-        for j, b2 in list(enumerate(bodies))[i+1:]:
-            r = b1['x'] - b2['x']
-            mg = -G * b1['m'] * b2['m'] / np.linalg.norm(r) ** 3 * r
-            fg[i] += mg
-            fg[j] -= mg
-            g[i] += mg / b1['m']
-            g[j] -= mg / b2['m']
-    return fg, g
+    @property
+    def v(self):
+        return self.velocity
 
+    @v.setter
+    def v(self, velocity):
+        self.velocity = velocity
 
-def get_kinematic_quantity(bodies, name):
-    """
-    Returns the specified kinematic quantity of the point masses as a list in corresponding order to the inputted dictionaries.
-    :param bodies: List of dictionaries
-    :param name: String 'x', 'v', 'a', etc.
-    :return: Numpy array of the specified physical quantity (m, m/s, m/s^2, etc.)
-    """
-    return np.array([np.copy(b[name]) for b in bodies])
+    @property
+    def a(self):
+        return self.acceleration
 
+    @a.setter
+    def a(self, acceleration):
+        self.acceleration = acceleration
 
-def leapfrog(bodies, force, dt, is_a0, steps=1):
-    """
-    Use leapfrog method to integrate EOM and find the kinematic quantities of point masses after some time.
-    :param bodies: List of dictionaries representing point masses
-    :param force: Function representing the coupled EOM-ODE
-    :param dt: Time step (s)
-    :param is_a0: True if initial acceleration hasn't been set #
-    :param steps: Number of integration steps
-    :return: List of dictionaries representing point masses
-    """
-    if is_a0:
-        a = force(bodies)[1]
-    else:
-        a = get_kinematic_quantity(bodies, 'a')
-    v = get_kinematic_quantity(bodies, 'v')
-    x = get_kinematic_quantity(bodies, 'x')
-    v = v + a * dt / 2
-    x = x + v * dt
-    a = force(bodies)[1]
-    v = v + a * dt / 2
-    new_bodies = []
-    for i, b in enumerate(bodies):
-        mass, position, velocity, acceleration = (np.copy(b['m']), x[i], v[i], a[i])
-        new_bodies.append({'m': mass, 'x': position, 'v': velocity, 'a': acceleration})
-    return new_bodies
+    @property
+    def v_dir(self):
+        return self.velocity / np.linalg.norm(self.velocity)
 
+    @property
+    def a_dir(self):
+        return self.acceleration / np.linalg.norm(self.acceleration)
+    
+    @property
+    def speed(self):
+        return np.linalg.norm(self.v)
+    
+    @property
+    def KE(self):
+        return (1/2) * self.m * self.speed ** 2
+    
+    def U(self, bodies):
+        energy = 0
+        for b in bodies:
+            if b == self:
+                continue
+            energy += gravitational_potential_energy(self, b)
+        return energy
+    
+    def total_mechanical_energy(self, bodies):
+        return self.U(bodies) + self.KE
+    
+    def bounce(self, direction):
+        match direction:
+            case 'x':
+                self.x[0] *= -1
+            case 'y':
+                self.x[1] *= -1
+            case 'z':
+                self.x[2] *= -1
+            case 'all':
+                self.x *= -1
 
-def boundary(body, xlim, ylim):
-    x, y = body['x']
-    velocity = body['v']
-    if x <= min(xlim) or x >= max(xlim):
-        velocity[0] *= -1
-    if y <= min(ylim) or y >= max(ylim):
-        velocity[1] *= -1
+    def dict(self):
+        return {'m': self.m, 'x': self.x, 'v': self.v, 'a': self.a}
+    
+    def __repr__(self):
+        return str(self.dict())
+    
+    def __str__(self):
+        return f'Mass: {self.m} | Position: {self.x} | Velocity: {self.v} | Acceleration: {self.a}'
+    
+
 
 
