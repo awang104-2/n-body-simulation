@@ -24,3 +24,6 @@ def main(n=10, graph=True):
 
 if __name__ == '__main__':
     main(50, False)
+
+
+
