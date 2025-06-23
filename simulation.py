@@ -48,9 +48,3 @@ def energy_plot(t, e):
     plt.show()
     
 
-if __name__ == '__main__':
-    bodies = []
-    bodies.append(dynamics.Body(mass=1, position=(340, 360, 0), velocity=(0, 258, 0)))
-    bodies.append(dynamics.Body(mass=2e7, position=(640, 360, 0), velocity=(0, 0, 0)))
-    time, energy = simulate(bodies)
-    energy_plot(time, energy)

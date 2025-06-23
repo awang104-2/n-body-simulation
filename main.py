@@ -8,13 +8,13 @@ import dynamics
 import simulation
 
 
-def test_function(x=0, y=0, z=0):
-    print(x, y, z)
+def main():
+    bodies = []
+    bodies.append(dynamics.Body(mass=1, position=(340, 360, 0), velocity=(0, 258, 0)))
+    bodies.append(dynamics.Body(mass=2e7, position=(640, 360, 0), velocity=(0, 0, 0)))
+    time, energy = simulation.simulate(bodies)
+    simulation.energy_plot(time, energy)
 
 
 if __name__ == '__main__':
-    bodies = []
-    for i in range(3):
-        bodies.append(dynamics.Body(position=(i, 1, 1)))
-    for body in bodies:
-        print(body)
+    main()
