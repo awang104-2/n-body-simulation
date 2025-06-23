@@ -59,6 +59,11 @@ def leapfrog(bodies, dt, forces=tuple([gravity])):
         b1.v = v_halves[i] + 1/2 * b1.a * dt
 
 
+def boundary(bodies, xlim, ylim):
+    for b in bodies:
+        b.bounce(xlim, ylim)
+
+
 class Body:
 
     def __init__(self, mass=100, position=(0, 0, 0), velocity=(0, 0, 0), acceleration=(0, 0, 0)):
@@ -133,17 +138,16 @@ class Body:
     def total_mechanical_energy(self, bodies):
         return self.U(bodies) + self.KE
     
-    def bounce(self, direction):
-        match direction:
-            case 'x':
-                self.x[0] *= -1
-            case 'y':
-                self.x[1] *= -1
-            case 'z':
-                self.x[2] *= -1
-            case 'all':
-                self.x *= -1
-
+    def bounce(self, xlim, ylim):
+        if self.x[0] <= xlim[0]:
+            self.v[0] = np.abs(self.v[0])
+        elif self.x[0] >= xlim[1]:
+            self.v[0] = -np.abs(self.v[0])
+        if self.x[1] <= ylim[0]:
+            self.v[1] = np.abs(self.v[1])
+        elif self.x[1] >= ylim[1]:
+            self.v[1] = -np.abs(self.v[1])
+        
     def dict(self):
         return {'m': self.m, 'x': self.x, 'v': self.v, 'a': self.a}
     
