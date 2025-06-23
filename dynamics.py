@@ -5,6 +5,14 @@ gravitational_constant = 1  # Gravitational constant
 G = gravitational_constant  # Gravitational constant
 
 
+class Body:
+
+    def __init__(self, mass, position, velocity, acceleration):
+        self._mass = mass
+        self.position = np.array(position)
+        self.velocity = np.array(velocity)
+
+
 def define_body(mass, position, velocity=None, acceleration=None):
     """
     Creates a dictionary representing a point mass with the parameters as properties.
@@ -15,9 +23,9 @@ def define_body(mass, position, velocity=None, acceleration=None):
     :return: A dictionary with the point mass's properties
     """
     N = len(position)
-    if not velocity:
+    if velocity is None:
         velocity = np.zeros(N)
-    if not acceleration:
+    if acceleration is None:
         acceleration = np.zeros(N)
     position, velocity, acceleration = np.array(position), np.array(velocity), np.array(acceleration)
     return {'m': mass, 'x': position, 'v': velocity, 'a': acceleration}
@@ -79,3 +87,14 @@ def leapfrog(bodies, force, dt, is_a0, steps=1):
         mass, position, velocity, acceleration = (np.copy(b['m']), x[i], v[i], a[i])
         new_bodies.append({'m': mass, 'x': position, 'v': velocity, 'a': acceleration})
     return new_bodies
+
+
+def boundary(body, xlim, ylim):
+    x, y = body['x']
+    velocity = body['v']
+    if x <= min(xlim) or x >= max(xlim):
+        velocity[0] *= -1
+    if y <= min(ylim) or y >= max(ylim):
+        velocity[1] *= -1
+
+
