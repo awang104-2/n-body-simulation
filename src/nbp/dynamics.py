@@ -5,15 +5,21 @@ Copyright (c) 2025 awang104
 """
 
 import numpy as np
-from typing import Iterable, Tuple, Type, Any
+import numpy.typing as npt
+from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable
 
 
+# Typing
+_dtype = TypeVar("DType", bound=np.generic)
+_array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
+
+
+# Constants
 gravitational_constant = 6.6743e-11  # Gravitational constant
 coulombs_constant = 8.9875e9  # Coulomb's constant
 
 G = gravitational_constant  # Gravitational constant
 K = coulombs_constant  # Coulomb's constant
-
 
 planet_mass = {
     'sun': 1.989e30,
@@ -36,7 +42,7 @@ planet_distance = {
 
 class Body:
 
-    def __init__(self, mass=100, position=(0, 0, 0), velocity=(0, 0, 0), acceleration=(0, 0, 0), charge=0):
+    def __init__(self, mass: float, position: Tuple[float, float, float] = (0, 0, 0), velocity: Tuple[float, float, float] = (0, 0, 0), acceleration: Tuple[float, float, float] = (0, 0, 0), charge: float = 0):
         """
         Models the kinematics of a point mass.
         :param mass: Scalar mass of the point mass
@@ -52,7 +58,7 @@ class Body:
         self.charge = charge
 
     @property
-    def q(self):
+    def q(self) -> float:
         return self.charge
     
     @q.setter
@@ -60,7 +66,7 @@ class Body:
         self.charge = q
 
     @property
-    def m(self):
+    def m(self) -> float:
         return self.mass
 
     @m.setter
@@ -68,7 +74,7 @@ class Body:
         self.mass = mass
 
     @property
-    def x(self):
+    def x(self) -> _array3[np.float64]:
         return self.position
     
     @x.setter
@@ -76,7 +82,7 @@ class Body:
         self.position = position
 
     @property
-    def v(self):
+    def v(self) -> _array3[np.float64]:
         return self.velocity
 
     @v.setter
@@ -84,7 +90,7 @@ class Body:
         self.velocity = velocity
 
     @property
-    def a(self):
+    def a(self) -> _array3[np.float64]:
         return self.acceleration
 
     @a.setter
@@ -92,22 +98,22 @@ class Body:
         self.acceleration = acceleration
 
     @property
-    def v_dir(self):
+    def v_dir(self) -> _array3[np.float64]:
         return self.velocity / np.linalg.norm(self.velocity)
 
     @property
-    def a_dir(self):
+    def a_dir(self) -> _array3[np.float64]:
         return self.acceleration / np.linalg.norm(self.acceleration)
     
     @property
-    def speed(self):
+    def speed(self) -> float:
         return np.linalg.norm(self.v)
     
     @property
-    def KE(self):
+    def KE(self) -> float:
         return (1/2) * self.m * self.speed ** 2
     
-    def U(self, bodies: Iterable[Any]):
+    def U(self, bodies: Iterable[Self]) -> float:
         energy = 0
         for b in bodies:
             if b == self:
@@ -115,10 +121,10 @@ class Body:
             energy += gravitational_potential_energy(self, b)
         return energy
     
-    def total_mechanical_energy(self, bodies: Iterable):
+    def total_mechanical_energy(self, bodies: Iterable[Self]) -> float:
         return self.U(bodies) + self.KE
     
-    def bounce(self, xlim, ylim):
+    def bounce(self, xlim: Tuple[float, float], ylim: Tuple[float, float]):
         if self.x[0] <= xlim[0]:
             self.v[0] = np.abs(self.v[0])
         elif self.x[0] >= xlim[1]:
@@ -138,30 +144,30 @@ class Body:
         return f'Mass: {self.m} | Position: {self.x} | Velocity: {self.v} | Acceleration: {self.a}'
     
 
-def gravitational_potential_energy(b1: Body, b2: Body):
+def gravitational_potential_energy(b1: Body, b2: Body) -> float:
     return -G * b1.m * b2.m / distance(b1, b2)
 
 
-def distance(b1: Body, b2: Body):
+def distance(b1: Body, b2: Body) -> float:
     return np.linalg.norm(b2.x - b1.x)
 
 
-def displacement(b1: Body, b2: Body):
+def displacement(b1: Body, b2: Body) -> _array3[np.float64]:
     return b2.x - b1.x
 
 
-def n_bodies(n: int):
+def n_bodies(n: int) -> Iterable[Body]:
     bodies = []
     for _ in range(n):
         bodies.append(Body())
     return bodies
 
 
-def electric_force(b1: Body, b2: Body):
+def electric_force(b1: Body, b2: Body) -> float:
     return 
 
 
-def gravity(b1, b2, vector=False):
+def gravity(b1: Body, b2: Body, vector: bool = False) -> float | _array3[np.float64]:
     r = distance(b1, b2)
     if vector:
         return G * b1.m * b2.m / r ** 3 * displacement(b1, b2)
@@ -169,7 +175,7 @@ def gravity(b1, b2, vector=False):
         return G * b1.m * b2.m / r ** 2
 
 
-def leapfrog(bodies, dt, forces=tuple([gravity])):
+def leapfrog(bodies: Iterable[Self], dt: float, forces: Tuple[Callable] = tuple([gravity])):
     """
     Use leapfrog method to integrate EOM for a list of Body instances using list of forces.
     :param bodies: List of Body instances
@@ -213,11 +219,11 @@ class System:
                     b1.a += force(b1, b2, True) / b1.mass
 
     @property
-    def t(self):
+    def t(self) -> float:
         return self.time
 
     @property
-    def history(self):
+    def history(self) -> bool:
         return self._history[1]
 
     @history.setter
