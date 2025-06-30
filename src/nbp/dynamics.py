@@ -6,6 +6,8 @@ Copyright (c) 2025 awang104
 
 import numpy as np
 import numpy.typing as npt
+import astropy.units as u
+import astropy.constants as c
 from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable
 
 
@@ -15,18 +17,15 @@ _array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
 
 
 # Constants
-gravitational_constant = 6.6743e-11  # Gravitational constant
-coulombs_constant = 8.9875e9  # Coulomb's constant
-
-G = gravitational_constant  # Gravitational constant
-K = coulombs_constant  # Coulomb's constant
+G = c.G  # Gravitational constant
+K = 8.9875e9 * u.N * u.meter ** 2 / u.C ** 2 # Coulomb's constant
 
 planet_mass = {
-    'sun': 1.989e30,
-    'mercury': 0.330e24,
-    'venus': 4.87e24,
-    'earth': 5.97e24,
-    'mars': 0.642e24
+    'sun': c.M_sun,
+    'mercury': c.M_mercury,
+    'venus': c.M_venus,
+    'earth': c.M_earth,
+    'mars': c.M_mars
 }
 
 planet_speeds = {
