@@ -7,6 +7,7 @@ Copyright (c) 2025 awang104
 import numpy as np
 import numpy.typing as npt
 from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable
+from src.nbp.constants import G
 
 
 # Typing
