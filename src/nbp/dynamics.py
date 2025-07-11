@@ -11,9 +11,8 @@ from src.nbp.constants import G
 
 
 # Typing
-_dtype = TypeVar("DType", bound=np.generic)
+_dtype = TypeVar("_dtype", bound=np.generic)
 _array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
-
 
 
 class Body:
@@ -83,7 +82,7 @@ class Body:
     
     @property
     def speed(self) -> float:
-        return np.linalg.norm(self.v)
+        return float(np.linalg.norm(self.v))
     
     @property
     def KE(self) -> float:
@@ -125,7 +124,7 @@ def gravitational_potential_energy(b1: Body, b2: Body) -> float:
 
 
 def distance(b1: Body, b2: Body) -> float:
-    return np.linalg.norm(b2.x - b1.x)
+    return float(np.linalg.norm(b2.x - b1.x))
 
 
 def displacement(b1: Body, b2: Body) -> _array3[np.float64]:
@@ -140,7 +139,7 @@ def n_bodies(n: int) -> Iterable[Body]:
 
 
 def electric_force(b1: Body, b2: Body) -> float:
-    return 
+    return 0
 
 
 def gravity(b1: Body, b2: Body, vector: bool = False) -> float | _array3[np.float64]:
@@ -151,12 +150,12 @@ def gravity(b1: Body, b2: Body, vector: bool = False) -> float | _array3[np.floa
         return G * b1.m * b2.m / r ** 2
 
 
-def leapfrog(bodies: Iterable[Self], dt: float, forces: Tuple[Callable] = tuple([gravity])):
+def leapfrog(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
     """
     Use leapfrog method to integrate EOM for a list of Body instances using list of forces.
     :param bodies: List of Body instances
     :param dt: Time step (s)
-    :param force: Function of the force, gravity by default
+    :param forces: List of functions returning forces between two Body instances.
     """
     v_halves = []
     for b in bodies:
