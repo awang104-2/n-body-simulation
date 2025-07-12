@@ -6,7 +6,7 @@ Copyright (c) 2025 awang104
 import numpy as np
 import numpy.typing as npt
 from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable, Union
-from src.nbp.constants import G
+from nbp.constants import G
 
 
 # Typing
@@ -182,7 +182,9 @@ def evaluate(forces, t, x: Vector3D = None, v: Vector3D = None):
     if x is None and v is None:
         raise AttributeError('arguments \'x\' and \'v\' cannot both be None')
     if x is not None:
-        x
+        x = 3
+    if v is not None:
+        pass
 
 
 def rk4(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
