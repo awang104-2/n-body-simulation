@@ -1,25 +1,23 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="aqw-tools",  # Replace with your project name
+    name="n-body-simulation",  # Replace with your project name
     version="0.1",
     packages=find_packages(where="src"),  # Automatically finds all packages under src/
     package_dir={"": "src"},  # Tells setuptools that packages are under src
     install_requires=[  # List any external dependencies here
-        'comtypes==1.4.9',
-        'numpy==2.2.1',
-        'opencv-python==4.11.0.86',
-        'pandas==2.2.3',
-        'pillow==11.1.0',
-        'pynput==1.7.7',
+        'contourpy==1.3.2',
+        'cycler==0.12.1',
+        'fonttools==4.58.5',
+        'kiwisolver==1.4.8',
+        'matplotlib==3.10.3',
+        'numpy==2.3.1',
+        'packaging==25.0',
+        'pillow==11.3.0',
+        'pygame==2.6.1',
+        'pyparsing==3.2.3',
         'python-dateutil==2.9.0.post0',
-        'pytz==2024.2',
-        'pywin32==308',
-        'pywinauto==0.6.9',
-        'scapy==2.6.1',
-        'setuptools>=78.1.1',
-        'six==1.17.0',
-        'tzdata==2024.2'
+        'six==1.17.0'
     ],
     include_package_data=True
 )

@@ -119,7 +119,7 @@ class Body:
         return f'Mass: {self.m} | Position: {self.x} | Velocity: {self.v} | Acceleration: {self.a}'
 
 
-def gravity_pe_nobody(m1: float, m2: float, d: Vector3D or float):
+def gravity_pe_nobody(m1: float, m2: float, d: Vector3D | float):
     if not isinstance(d, float):
         d = np.linalg.norm(d)
     return -G * m1 * m2 / d
@@ -148,7 +148,7 @@ def electric_force(b1: Body, b2: Body) -> float:
     return 0
 
 
-def gravity(b1: Body or Vector3D, b2: Body or Vector3D, vector: bool = False) -> float | _array3[np.float64]:
+def gravity(b1: Body | Vector3D, b2: Body | Vector3D, vector: bool = False) -> float | _array3[np.float64]:
     r = distance(b1, b2)
     if vector:
         return G * b1.m * b2.m / r ** 3 * displacement(b1, b2)

@@ -3,10 +3,9 @@ MIT License
 
 Copyright (c) 2025 awang104
 """
-
+import matplotlib.pyplot as plt 
 import dynamics
 import pygame
-import matplotlib.pyplot as plt 
 from typing import Iterable
 
 
