@@ -3,10 +3,10 @@ MIT License
 
 Copyright (c) 2025 awang104
 """
-import matplotlib.pyplot as plt 
-import dynamics
-import pygame
 from typing import Iterable
+from nbp import dynamics
+import matplotlib.pyplot as plt 
+import pygame
 
 
 def draw(surface: pygame.Surface, bodies: Iterable[dynamics.Body], scale: float = 1):
