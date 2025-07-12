@@ -3,21 +3,21 @@ MIT License
 
 Copyright (c) 2025 awang104
 """
-
 import numpy as np
 import numpy.typing as npt
-from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable
+from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable, Union
 from src.nbp.constants import G
 
 
 # Typing
 _dtype = TypeVar("_dtype", bound=np.generic)
 _array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
+Vector3D = Tuple[float, float, float]
 
 
 class Body:
 
-    def __init__(self, mass: float, position: Tuple[float, float, float] = (0, 0, 0), velocity: Tuple[float, float, float] = (0, 0, 0), acceleration: Tuple[float, float, float] = (0, 0, 0), charge: float = 0):
+    def __init__(self, mass: float, position: Vector3D = (0, 0, 0), velocity: Vector3D = (0, 0, 0), acceleration: Vector3D = (0, 0, 0), charge: float = 0):
         """
         Models the kinematics of a point mass.
         :param mass: Scalar mass of the point mass
@@ -53,7 +53,7 @@ class Body:
         return self.position
     
     @x.setter
-    def x(self, position: Tuple[float, float, float]):
+    def x(self, position: Vector3D):
         self.position = position
 
     @property
@@ -61,7 +61,7 @@ class Body:
         return self.velocity
 
     @v.setter
-    def v(self, velocity: Tuple[float, float, float]):
+    def v(self, velocity: Vector3D):
         self.velocity = velocity
 
     @property
@@ -69,7 +69,7 @@ class Body:
         return self.acceleration
 
     @a.setter
-    def a(self, acceleration: Tuple[float, float, float]):
+    def a(self, acceleration: Vector3D):
         self.acceleration = acceleration
 
     @property
@@ -93,7 +93,7 @@ class Body:
         for b in bodies:
             if b == self:
                 continue
-            energy += gravitational_potential_energy(self, b)
+            energy += gravity_pe_body(self, b)
         return energy
     
     def total_mechanical_energy(self, bodies: Iterable[Self]) -> float:
@@ -117,9 +117,15 @@ class Body:
     
     def __str__(self):
         return f'Mass: {self.m} | Position: {self.x} | Velocity: {self.v} | Acceleration: {self.a}'
-    
 
-def gravitational_potential_energy(b1: Body, b2: Body) -> float:
+
+def gravity_pe_nobody(m1: float, m2: float, d: Vector3D or float):
+    if not isinstance(d, float):
+        d = np.linalg.norm(d)
+    return -G * m1 * m2 / d
+
+
+def gravity_pe_body(b1: Body, b2: Body) -> float:
     return -G * b1.m * b2.m / distance(b1, b2)
 
 
@@ -142,7 +148,7 @@ def electric_force(b1: Body, b2: Body) -> float:
     return 0
 
 
-def gravity(b1: Body, b2: Body, vector: bool = False) -> float | _array3[np.float64]:
+def gravity(b1: Body or Vector3D, b2: Body or Vector3D, vector: bool = False) -> float | _array3[np.float64]:
     r = distance(b1, b2)
     if vector:
         return G * b1.m * b2.m / r ** 3 * displacement(b1, b2)
@@ -152,7 +158,7 @@ def gravity(b1: Body, b2: Body, vector: bool = False) -> float | _array3[np.floa
 
 def leapfrog(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
     """
-    Use leapfrog method to integrate EOM for a list of Body instances using list of forces.
+    Integrate EOM using the leapfrog method for a list of point masses and forces.
     :param bodies: List of Body instances
     :param dt: Time step (s)
     :param forces: List of functions returning forces between two Body instances.
@@ -170,6 +176,41 @@ def leapfrog(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
             for force in forces:
                 b1.a += force(b1, b2, True) / b1.mass
         b1.v = v_halves[i] + 1/2 * b1.a * dt
+
+
+def evaluate(forces, t, x: Vector3D = None, v: Vector3D = None):
+    if x is None and v is None:
+        raise AttributeError('arguments \'x\' and \'v\' cannot both be None')
+    if x is not None:
+        x
+
+
+def rk4(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
+    """
+    Integrate EOM using the Runge-Kutta 4th order method for a list of point masses and forces.
+    :param bodies:
+    :param dt:
+    :param forces:
+    :return:
+    """
+    coeff = [0, 0.5, 0.5, 1]
+    x0 = np.array(list(map(lambda b: b.x, bodies)))
+    v0 = np.array(list(map(lambda b: b.v, bodies)))
+    for stage in range(4):
+        for b in bodies:
+            b.x += b.v * coeff[stage] * dt
+            b.v += b.a * coeff[stage] * dt
+            x0[0] += coeff[stage] * b.v * dt
+        for i, b1 in enumerate(bodies):
+            b1.a = np.zeros(3)
+            for b2 in bodies:
+                if b2 == b1:
+                    continue
+                for force in forces:
+                    b1.a += force(b1, b2, True) / b1.mass
+    for i, b in enumerate(bodies):
+        b.x = x0[i]
+        b.v = v0[i]
 
 
 def boundary(bodies, xlim, ylim):
@@ -209,4 +250,4 @@ class System:
         for _ in range(n):
             self.integrator(self.bodies, dt, forces=self.forces)
             self.time += dt
-        
+
