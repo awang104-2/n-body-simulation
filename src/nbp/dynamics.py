@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable, Union
 from nbp.constants import G
+import random
 
 
 # Typing
@@ -84,30 +85,8 @@ class Body:
     def speed(self) -> float:
         return float(np.linalg.norm(self.v))
     
-    @property
-    def KE(self) -> float:
-        return (1/2) * self.m * self.speed ** 2
-    
-    def U(self, bodies: Iterable[Self]) -> float:
-        energy = 0
-        for b in bodies:
-            if b == self:
-                continue
-            energy += gravity_pe_body(self, b)
-        return energy
-    
-    def total_mechanical_energy(self, bodies: Iterable[Self]) -> float:
-        return self.U(bodies) + self.KE
-    
-    def bounce(self, xlim: Tuple[float, float], ylim: Tuple[float, float]):
-        if self.x[0] <= xlim[0]:
-            self.v[0] = np.abs(self.v[0])
-        elif self.x[0] >= xlim[1]:
-            self.v[0] = -np.abs(self.v[0])
-        if self.x[1] <= ylim[0]:
-            self.v[1] = np.abs(self.v[1])
-        elif self.x[1] >= ylim[1]:
-            self.v[1] = -np.abs(self.v[1])
+    def copy(self):
+        return Body(self.mass, self.x.copy(), self.v.copy(), self.a.copy(), self.charge)
         
     def dict(self):
         return {'m': self.m, 'x': self.x, 'v': self.v, 'a': self.a}
@@ -117,12 +96,46 @@ class Body:
     
     def __str__(self):
         return f'Mass: {self.m} | Position: {self.x} | Velocity: {self.v} | Acceleration: {self.a}'
+    
+    
+class System:
 
+    def __init__(self, bodies, gravity=True, electric_force=False):
+        self.bodies = bodies
+        self.forces = {'gravity': gravity, 'electric': electric_force}
 
-def gravity_pe_nobody(m1: float, m2: float, d: Vector3D | float):
-    if not isinstance(d, float):
-        d = np.linalg.norm(d)
-    return -G * m1 * m2 / d
+    @property
+    def m(self):
+        return np.array([b.m for b in self.bodies])
+
+    @property
+    def x(self):
+        return np.array([b.x for b in self.bodies])
+    
+    @property
+    def v(self):
+        return np.array([b.v for b in self.bodies])
+
+    @property
+    def a(self):
+        if self.forces['gravity']:
+            for i, b1 in enumerate(self.bodies):
+                b1.a = np.zeros(3)
+                for b2 in self.bodies:
+                    if b2 == b1:
+                        continue
+                    b1.a += gravity(b1, b2, True) / b1.mass
+        return np.array([b.a for b in self.bodies])
+    
+    @property
+    def com(self):
+        return (self.mass * self.position) / sum(self.mass)
+    
+    def copy(self):
+        bodies = []
+        for b in self.bodies:
+            bodies.append(b.copy())
+        return System(bodies)
 
 
 def gravity_pe_body(b1: Body, b2: Body) -> float:
@@ -144,10 +157,6 @@ def n_bodies(n: int) -> Iterable[Body]:
     return bodies
 
 
-def electric_force(b1: Body, b2: Body) -> float:
-    return 0
-
-
 def gravity(b1: Body | Vector3D, b2: Body | Vector3D, vector: bool = False) -> float | _array3[np.float64]:
     r = distance(b1, b2)
     if vector:
@@ -156,13 +165,18 @@ def gravity(b1: Body | Vector3D, b2: Body | Vector3D, vector: bool = False) -> f
         return G * b1.m * b2.m / r ** 2
 
 
-def leapfrog(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
+def leapfrog(system: System | Iterable[Body], dt: float, forces: Iterable[Callable]):
     """
     Integrate EOM using the leapfrog method for a list of point masses and forces.
-    :param bodies: List of Body instances
+    :param bodies: System instance or list of Body instances
     :param dt: Time step (s)
     :param forces: List of functions returning forces between two Body instances.
     """
+    if isinstance(system, Iterable):
+        bodies = system
+    else:
+        bodies = system.bodies
+
     v_halves = []
     for b in bodies:
         v_half = b.v + 1/2 * b.a * dt
@@ -178,16 +192,26 @@ def leapfrog(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
         b1.v = v_halves[i] + 1/2 * b1.a * dt
 
 
-def evaluate(forces, t, x: Vector3D = None, v: Vector3D = None):
-    if x is None and v is None:
-        raise AttributeError('arguments \'x\' and \'v\' cannot both be None')
-    if x is not None:
-        x = 3
-    if v is not None:
-        pass
+def evaluate_grav(stage: int, system: System, k=None, dt=None):
+    system = system.copy()
+    match stage:
+        case 1:
+            pass
+        case 2:
+            system.x += 0.5 * k[0] * dt
+            system.v += 0.5 * k[1] * dt
+        case 3:
+            system.x += 0.5 * k[0] * dt
+            system.v += 0.5 * k[1] * dt
+        case 4:
+            system.x += k[0] * dt
+            system.v += k[1] * dt
+    k_x = system.v
+    k_v = system.a
+    return k_x, k_v
 
 
-def rk4(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
+def rk4(system: System, dt: float, forces: Iterable[Callable]):
     """
     Integrate EOM using the Runge-Kutta 4th order method for a list of point masses and forces.
     :param bodies:
@@ -195,61 +219,16 @@ def rk4(bodies: Iterable[Body], dt: float, forces: Iterable[Callable]):
     :param forces:
     :return:
     """
-    coeff = [0, 0.5, 0.5, 1]
-    x0 = np.array(list(map(lambda b: b.x, bodies)))
-    v0 = np.array(list(map(lambda b: b.v, bodies)))
-    for stage in range(4):
-        for b in bodies:
-            b.x += b.v * coeff[stage] * dt
-            b.v += b.a * coeff[stage] * dt
-            x0[0] += coeff[stage] * b.v * dt
-        for i, b1 in enumerate(bodies):
-            b1.a = np.zeros(3)
-            for b2 in bodies:
-                if b2 == b1:
-                    continue
-                for force in forces:
-                    b1.a += force(b1, b2, True) / b1.mass
-    for i, b in enumerate(bodies):
-        b.x = x0[i]
-        b.v = v0[i]
+    k1 = evaluate_grav(1, system)
+    k2 = evaluate_grav(2, system, k1, dt)
+    k3 = evaluate_grav(3, system, k2, dt)
+    k4 = evaluate_grav(4, system, k3, dt)
+    system.x += (1/6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) * dt
+    system.v += (1/6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) * dt
 
 
 def boundary(bodies, xlim, ylim):
     for b in bodies:
         b.bounce(xlim, ylim)
     
-
-class System:
-
-    def __init__(self, bodies, forces, integrator):
-        self.bodies = bodies
-        self.forces = forces
-        self.integrator = integrator
-        self._history = [[], False]
-        self.time = 0
-        for b1 in enumerate(bodies):
-            b1.a = np.zeros(3)
-            for b2 in bodies:
-                if b2 == b1:
-                    continue
-                for force in forces:
-                    b1.a += force(b1, b2, True) / b1.mass
-
-    @property
-    def t(self) -> float:
-        return self.time
-
-    @property
-    def history(self) -> bool:
-        return self._history[1]
-
-    @history.setter
-    def history(self, on):
-        self._history[1] = on
-        
-    def __call__(self, dt, n=1):
-        for _ in range(n):
-            self.integrator(self.bodies, dt, forces=self.forces)
-            self.time += dt
 
