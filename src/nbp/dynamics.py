@@ -3,35 +3,38 @@ MIT License
 
 Copyright (c) 2025 awang104
 """
+from warnings import deprecated
 import numpy as np
 import numpy.typing as npt
 from typing import Iterable, Tuple, Self, Literal, Annotated, TypeVar, Callable, Union
-from nbp.constants import G
-import random
+from nbp import constants
 
 
 # Typing
 _dtype = TypeVar("_dtype", bound=np.generic)
 _array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
-Vector3D = Tuple[float, float, float]
+Vector3D = Union[Tuple[float, float, float], np.typing.ArrayLike]
+
+# RKF4 Tolerance
+TOLERANCE = 1e-8
 
 
 class Body:
 
-    def __init__(self, mass: float, position: Vector3D = (0, 0, 0), velocity: Vector3D = (0, 0, 0), acceleration: Vector3D = (0, 0, 0), charge: float = 0):
+    def __init__(self, m: float, x: Vector3D = (0, 0, 0), v: Vector3D = (0, 0, 0), a: Vector3D = (0, 0, 0), q: float = 0):
         """
         Models the kinematics of a point mass.
-        :param mass: Scalar mass of the point mass
-        :param position: 3D vector position of the point mass
-        :param velocity: 3D vector velocity of the point mass
-        :param acceleration: 3D vector acceleration of the point mass
+        :param m: Scalar mass of the point mass
+        :param x: 3D vector position of the point mass
+        :param v: 3D vector velocity of the point mass
+        :param a: 3D vector acceleration of the point mass
         """
-        self.mass = mass
-        self.position = np.array(position).astype(float)
-        self.velocity = np.array(velocity).astype(float)
-        self.acceleration = np.array(acceleration).astype(float)
+        self.mass = m
+        self.position = np.array(x).astype(float)
+        self.velocity = np.array(v).astype(float)
+        self.acceleration = np.array(a).astype(float)
+        self.charge = q
         self.color = (255, 0, 0)
-        self.charge = charge
 
     @property
     def q(self) -> float:
@@ -84,6 +87,10 @@ class Body:
     @property
     def speed(self) -> float:
         return float(np.linalg.norm(self.v))
+
+    @property
+    def KE(self):
+        return 1 / 2 * self.m * self.speed ** 2
     
     def copy(self):
         return Body(self.mass, self.x.copy(), self.v.copy(), self.a.copy(), self.charge)
@@ -105,16 +112,45 @@ class System:
         self.forces = {'gravity': gravity, 'electric': electric_force}
 
     @property
+    def KE(self):
+        return sum([b.KE for b in self.bodies])
+
+    @property
+    def U(self):
+        energy = 0
+        n = len(self.bodies)
+        for i in range(n):
+            for j in range(i + 1, n):
+                b1, b2 = self.bodies[i], self.bodies[j]
+                energy -= gravity(b1, b2, False) * distance(b1, b2)
+        return energy
+
+    @property
     def m(self):
         return np.array([b.m for b in self.bodies])
+    
+    @m.setter
+    def m(self, masses):
+        for i, b in enumerate(self.bodies):
+            b.m = masses[i]
 
     @property
     def x(self):
         return np.array([b.x for b in self.bodies])
     
+    @x.setter
+    def x(self, positions):
+        for i, b in enumerate(self.bodies):
+            b.x = positions[i]
+    
     @property
     def v(self):
         return np.array([b.v for b in self.bodies])
+    
+    @v.setter
+    def v(self, velocities):
+        for i, b in enumerate(self.bodies):
+            b.v = velocities[i]
 
     @property
     def a(self):
@@ -127,9 +163,14 @@ class System:
                     b1.a += gravity(b1, b2, True) / b1.mass
         return np.array([b.a for b in self.bodies])
     
+    @a.setter
+    def a(self, accelerations):
+        for i, b in enumerate(self.bodies):
+            b.a = accelerations[i]
+    
     @property
     def com(self):
-        return (self.mass * self.position) / sum(self.mass)
+        return (self.m @ self.x) / sum(self.m)
     
     def copy(self):
         bodies = []
@@ -138,8 +179,7 @@ class System:
         return System(bodies)
 
 
-def gravity_pe_body(b1: Body, b2: Body) -> float:
-    return -G * b1.m * b2.m / distance(b1, b2)
+SystemLike = Union[Iterable[dict], Iterable[Body], System]
 
 
 def distance(b1: Body, b2: Body) -> float:
@@ -150,49 +190,15 @@ def displacement(b1: Body, b2: Body) -> _array3[np.float64]:
     return b2.x - b1.x
 
 
-def n_bodies(n: int) -> Iterable[Body]:
-    bodies = []
-    for _ in range(n):
-        bodies.append(Body())
-    return bodies
-
-
 def gravity(b1: Body | Vector3D, b2: Body | Vector3D, vector: bool = False) -> float | _array3[np.float64]:
     r = distance(b1, b2)
     if vector:
-        return G * b1.m * b2.m / r ** 3 * displacement(b1, b2)
+        return constants.G * b1.m * b2.m / r ** 3 * displacement(b1, b2)
     else:
-        return G * b1.m * b2.m / r ** 2
+        return constants.G * b1.m * b2.m / r ** 2
 
 
-def leapfrog(system: System | Iterable[Body], dt: float, forces: Iterable[Callable]):
-    """
-    Integrate EOM using the leapfrog method for a list of point masses and forces.
-    :param bodies: System instance or list of Body instances
-    :param dt: Time step (s)
-    :param forces: List of functions returning forces between two Body instances.
-    """
-    if isinstance(system, Iterable):
-        bodies = system
-    else:
-        bodies = system.bodies
-
-    v_halves = []
-    for b in bodies:
-        v_half = b.v + 1/2 * b.a * dt
-        v_halves.append(v_half)
-        b.x += v_half * dt
-    for i, b1 in enumerate(bodies):
-        b1.a = np.zeros(3)
-        for b2 in bodies:
-            if b2 == b1:
-                continue
-            for force in forces:
-                b1.a += force(b1, b2, True) / b1.mass
-        b1.v = v_halves[i] + 1/2 * b1.a * dt
-
-
-def evaluate_grav(stage: int, system: System, k=None, dt=None):
+def evaluate_rk4(stage: int, system: System, k=None, dt=None):
     system = system.copy()
     match stage:
         case 1:
@@ -211,24 +217,136 @@ def evaluate_grav(stage: int, system: System, k=None, dt=None):
     return k_x, k_v
 
 
-def rk4(system: System, dt: float, forces: Iterable[Callable]):
+def rk4(system: System, dt: float):
     """
     Integrate EOM using the Runge-Kutta 4th order method for a list of point masses and forces.
-    :param bodies:
+    :param system:
     :param dt:
-    :param forces:
     :return:
     """
-    k1 = evaluate_grav(1, system)
-    k2 = evaluate_grav(2, system, k1, dt)
-    k3 = evaluate_grav(3, system, k2, dt)
-    k4 = evaluate_grav(4, system, k3, dt)
+    k1 = evaluate_rk4(1, system)
+    k2 = evaluate_rk4(2, system, k1, dt)
+    k3 = evaluate_rk4(3, system, k2, dt)
+    k4 = evaluate_rk4(4, system, k3, dt)
     system.x += (1/6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) * dt
     system.v += (1/6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) * dt
 
 
-def boundary(bodies, xlim, ylim):
-    for b in bodies:
-        b.bounce(xlim, ylim)
-    
+def leapfrog(system: System, current_time: float, dt: float = 0.01):
+    """
+    Integrate EOM in place using the leapfrog method for a list of point masses and forces.
+    :param system: System instance or list of Body instances
+    :param current_time: Current time (s)
+    :param dt: Time step (s)
+    """
+    v_halves = system.v + 1/2 * system.a * dt
+    system.x += v_halves * dt
+    system.v = v_halves + 1/2 * system.a * dt
+    current_time += dt
+    return current_time, dt
 
+
+@deprecated('old_leapfrog(system, dt) is deprecated, use leapfrog(system, dt) instead')
+def old_leapfrog(system: System, current_time: float, dt: float):
+    """
+    Integrate EOM using the leapfrog method for a list of point masses and forces.
+    :param system: List of Body instances
+    :param current_time: Current time (s)
+    :param dt: Time step (s)
+    """
+    bodies = system.bodies
+    v_halves = []
+    for i, b1 in enumerate(bodies):
+        b1.a = np.zeros(3)
+        for b2 in bodies:
+            if b2 == b1:
+                continue
+            b1.a += gravity(b1, b2, True) / b1.mass
+    for b in bodies:
+        v_half = b.v + 1 / 2 * b.a * dt
+        v_halves.append(v_half)
+        b.x += v_half * dt
+    for i, b1 in enumerate(bodies):
+        b1.a = np.zeros(3)
+        for b2 in bodies:
+            if b2 == b1:
+                continue
+            b1.a += gravity(b1, b2, True) / b1.mass
+        b1.v = v_halves[i] + 1 / 2 * b1.a * dt
+    current_time += dt
+    return current_time, dt
+
+
+def evaluate_rkf4(system, delta=None):
+    system = system.copy()
+    if delta is not None:
+        system.x += delta[0]
+        system.v += delta[1]
+    k_x = system.v
+    k_v = system.a
+    return np.array([k_x, k_v])
+
+
+def rkf4(system: System, current_time: float, dt: float):
+    """
+
+    :param system:
+    :param current_time:
+    :param dt:
+    """
+    # Find the K's
+    k1 = evaluate_rkf4(system)
+    k2 = evaluate_rkf4(system, 0.25 * k1 * dt)
+    k3 = evaluate_rkf4(system, (3/32 * k1 + 9/32 * k2) * dt)
+    k4 = evaluate_rkf4(system, (1932/2197 * k1 - 7200/2197 * k2 + 7296/2197 * k3) * dt)
+    k5 = evaluate_rkf4(system, (439/216 * k1 - 8 * k2 + 3680/513 * k3 - 845/4104 * k4) * dt)
+    k6 = evaluate_rkf4(system, (-8/27 * k1 + 2 * k2 - 3544/2565 * k3 + 1859/4104 * k4  - 11/40 * k5) * dt)
+
+    # Numerically integrate the system's position and velocity by one step
+    x1, v1 = system.x, system.v
+    system.x += (25/216 * k1[0] + 1408/2565 * k3[0] + 2197/4104 * k4[0] - 1/5 * k5[0]) * dt
+    system.v += (16/135 * k1[1] + 66565/12825 * k3[1] + 28561/56430 * k4[1] - 9/50 * k5[1] + 2/55 * k6[1]) * dt
+    
+    # Find the fourth order error using the RKF4 and RKF5 method.
+    tolerance_scale = [None, None]
+    tolerance_scale[0] = TOLERANCE + np.maximum(np.abs(x1), np.abs(system.x)) * TOLERANCE
+    tolerance_scale[1] = TOLERANCE + np.maximum(np.abs(v1), np.abs(system.v)) * TOLERANCE
+    tolerance_scale = np.array(tolerance_scale)
+    error_estimation = (25/216 * k1 + 1408/2565 * k3 + 2197/4104 * k4 - 1/5 * k5) * dt - (16/135 * k1 + 66565/12825 * k3 + 28561/56430 * k4 - 9/50 * k5 + 2/55 * k6) * dt
+    total = 0
+    for i in range(2):
+        total += np.average(np.square(error_estimation[i] / tolerance_scale[i]))
+    error = np.sqrt(total / 2)
+
+    # Find the next time step based on fourth-order error
+    min_power = 4
+    safety_min, safety_max = 0.33, 6
+    safety_factor = 0.38 ** (1 / (1 + min_power))
+    if error < 1e-12:
+        error = 1e-12
+    dt_next = safety_factor * error ** (-1 / (1 + min_power))
+    if dt_next > safety_max * dt:
+        dt *= safety_max
+    elif dt_next < safety_min * dt:
+        dt *= safety_min
+    current_time += dt_next
+    return current_time, dt_next
+
+
+
+def system(*args: SystemLike):
+    bodies = []
+    for arg in args:
+        if isinstance(arg, Iterable) and all(isinstance(b, Body) for b in arg):
+            for b in arg:
+                bodies.append(b)
+        elif isinstance(arg, System):
+            for b in arg.bodies:
+                bodies.append(b)
+        elif isinstance(arg, Iterable) and all(isinstance(kwargs, dict) for kwargs in arg):
+            for kwargs in arg:
+                b = Body(**kwargs)
+                bodies.append(b)
+        else:
+            raise AttributeError(f'Arguments must be SystemLike: {SystemLike}')
+    return System(bodies)
