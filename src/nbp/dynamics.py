@@ -16,7 +16,7 @@ _array3 = Annotated[npt.NDArray[_dtype], Literal[3]]
 Vector3D = Union[Tuple[float, float, float], np.typing.ArrayLike]
 
 # RKF4 Tolerance
-TOLERANCE = 1e-8
+TOLERANCE = 1e-13
 
 
 class Body:
@@ -217,12 +217,13 @@ def evaluate_rk4(stage: int, system: System, k=None, dt=None):
     return k_x, k_v
 
 
-def rk4(system: System, dt: float):
+def rk4(system: System, current_time: float, dt: float):
     """
     Integrate EOM using the Runge-Kutta 4th order method for a list of point masses and forces.
-    :param system:
-    :param dt:
-    :return:
+    :param system: System instance or list of Body instances
+    :param current_time: Current time (s)
+    :param dt: Time step (s)
+    :return: Current time after integration and next time step
     """
     k1 = evaluate_rk4(1, system)
     k2 = evaluate_rk4(2, system, k1, dt)
@@ -230,14 +231,17 @@ def rk4(system: System, dt: float):
     k4 = evaluate_rk4(4, system, k3, dt)
     system.x += (1/6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) * dt
     system.v += (1/6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) * dt
+    current_time += dt
+    return current_time, dt
 
 
 def leapfrog(system: System, current_time: float, dt: float = 0.01):
     """
-    Integrate EOM in place using the leapfrog method for a list of point masses and forces.
+    Performs leapfrog integration for a system of point masses across a specified time step.
     :param system: System instance or list of Body instances
     :param current_time: Current time (s)
     :param dt: Time step (s)
+    :return: Current time after integration and next time step
     """
     v_halves = system.v + 1/2 * system.a * dt
     system.x += v_halves * dt
@@ -249,7 +253,7 @@ def leapfrog(system: System, current_time: float, dt: float = 0.01):
 @deprecated('old_leapfrog(system, dt) is deprecated, use leapfrog(system, dt) instead')
 def old_leapfrog(system: System, current_time: float, dt: float):
     """
-    Integrate EOM using the leapfrog method for a list of point masses and forces.
+    Performs leapfrog integration for a system of point masses across a specified time step.
     :param system: List of Body instances
     :param current_time: Current time (s)
     :param dt: Time step (s)
@@ -289,11 +293,14 @@ def evaluate_rkf4(system, delta=None):
 
 def rkf4(system: System, current_time: float, dt: float):
     """
-
-    :param system:
-    :param current_time:
-    :param dt:
+    Performs Runge-Kutta-Fehlberg integration for a system of point masses across a specified time step.
+    :param system: System instance or list of Body instances
+    :param current_time: Current time (s)
+    :param dt: Time step (s)
     """
+    pass
+
+    '''
     # Find the K's
     k1 = evaluate_rkf4(system)
     k2 = evaluate_rkf4(system, 0.25 * k1 * dt)
@@ -306,9 +313,10 @@ def rkf4(system: System, current_time: float, dt: float):
     x1, v1 = system.x, system.v
     system.x += (25/216 * k1[0] + 1408/2565 * k3[0] + 2197/4104 * k4[0] - 1/5 * k5[0]) * dt
     system.v += (16/135 * k1[1] + 66565/12825 * k3[1] + 28561/56430 * k4[1] - 9/50 * k5[1] + 2/55 * k6[1]) * dt
-    
+    '''
+    '''
     # Find the fourth order error using the RKF4 and RKF5 method.
-    tolerance_scale = [None, None]
+    tolerance_scale = [[], []]
     tolerance_scale[0] = TOLERANCE + np.maximum(np.abs(x1), np.abs(system.x)) * TOLERANCE
     tolerance_scale[1] = TOLERANCE + np.maximum(np.abs(v1), np.abs(system.v)) * TOLERANCE
     tolerance_scale = np.array(tolerance_scale)
@@ -317,11 +325,12 @@ def rkf4(system: System, current_time: float, dt: float):
     for i in range(2):
         total += np.average(np.square(error_estimation[i] / tolerance_scale[i]))
     error = np.sqrt(total / 2)
-
+    
     # Find the next time step based on fourth-order error
     min_power = 4
     safety_min, safety_max = 0.33, 6
     safety_factor = 0.38 ** (1 / (1 + min_power))
+
     if error < 1e-12:
         error = 1e-12
     dt_next = safety_factor * error ** (-1 / (1 + min_power))
@@ -329,9 +338,15 @@ def rkf4(system: System, current_time: float, dt: float):
         dt *= safety_max
     elif dt_next < safety_min * dt:
         dt *= safety_min
-    current_time += dt_next
-    return current_time, dt_next
+    else:
+        dt = dt_next
 
+    if dt_next < TF * 1e-12:
+        dt = TF * 1e-12
+
+    current_time += dt
+    return current_time, dt_next
+    '''
 
 
 def system(*args: SystemLike):
